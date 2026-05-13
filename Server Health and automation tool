@@ -1,0 +1,73 @@
+
+import psutil
+import datetime
+import os
+import socket
+import sys
+
+def get_system_status():
+try:
+        stats = {
+            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "hostname": socket.gethostname(),
+            "cpu_usage": psutil.cpu_percent(interval=1),
+            "ram_usage": psutil.virtual_memory().percent,
+            "disk_usage": psutil.disk_usage('/').percent,
+            "load_avg": os.getloadavg() if hasattr(os, 'getloadavg') else (0, 0, 0)
+        }
+        return stats
+    except Exception as e:
+        print(f"Error collecting metrics: {e}")
+        sys.exit(1)
+
+def log_metrics(stats):
+    log_entry = (
+        f"[{stats['timestamp']}] HOST: {stats['hostname']} | "
+        f"CPU: {stats['cpu_usage']}% | RAM: {stats['ram_usage']}% | "
+        f"Disk: {stats['disk_usage']}% | Load: {stats['load_avg']}\n"
+    )
+    
+    try:
+        with open(LOG_FILE, "a") as f:
+            f.write(log_entry)
+    except IOError as e:
+        print(f"Error writing to log file: {e}")
+
+def check_alerts(stats):
+    alerts = []
+    if stats['cpu_usage'] > CPU_THRESHOLD:
+        alerts.append(f"High CPU usage: {stats['cpu_usage']}%")
+    
+    if stats['ram_usage'] > RAM_THRESHOLD:
+        alerts.append(f"High RAM usage: {stats['ram_usage']}%")
+        
+    if stats['disk_usage'] > DISK_THRESHOLD:
+        alerts.append(f"High Disk usage: {stats['disk_usage']}%")
+
+    if alerts:
+        print("\n--- SYSTEM ALERTS ---")
+        for alert in alerts:
+            print(f" {alert}")
+    else:
+        print("\n System status: Healthy")
+
+def main():
+    print(f"Starting System Health Check...")
+    
+    # 1. Get metrics
+    stats = get_system_status()
+    
+    # 2. Log to file
+    log_metrics(stats)
+    
+    # 3. Print summary to console
+    print(f"Time: {stats['timestamp']}")
+    print(f"CPU: {stats['cpu_usage']}% | RAM: {stats['ram_usage']}% | Disk: {stats['disk_usage']}%")
+    
+    # 4. Run alert check
+    check_alerts(stats)
+    
+    print(f"Check complete. Data saved to {LOG_FILE}\n")
+
+if __name__ == "__main__":
+    main()
